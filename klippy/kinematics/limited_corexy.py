@@ -65,22 +65,29 @@ class LimitedCoreXYKinematics(corexy.CoreXYKinematics):
         toolhead = move.toolhead
         max_v = toolhead.max_velocity
         max_a = toolhead.max_accel
+        max_pa = max_a
         move_d = move.move_d
         x,y,z = move.axes_d[:3]
         ab_linf = max(abs(x+y), abs(x-y))
         if ab_linf > 0:
             max_v *= move_d / ab_linf
-            x_o_a = x / self.max_x_accel
-            y_o_a = y / self.max_y_accel
+            max_x_accel = self.max_x_accel
+            max_y_accel = self.max_y_accel
+            x_o_a = x / max_x_accel
+            y_o_a = y / max_y_accel
+            x_o_pa = x / max_y_accel
+            y_o_pa = y / max_x_accel
             if self.scale_per_axis:
-                max_a *= move_d / (max(abs(x_o_a + y_o_a), abs(x_o_a - y_o_a)) * self.config_max_accel)
+                max_a *= move_d / self.config_max_accel
             else:
-                max_a = move_d / max(abs(x_o_a + y_o_a), abs(x_o_a - y_o_a))
+                max_a = move_d
+            max_pa = max_a / max(abs(x_o_pa + y_o_pa), abs(x_o_pa - y_o_pa))
+            max_a /= max(abs(x_o_a + y_o_a), abs(x_o_a - y_o_a))
         if z:
             z_ratio = move_d / abs(z)
             max_v = min(max_v, self.max_z_velocity * z_ratio)
             max_a = min(max_a, self.max_z_accel * z_ratio)
-        move.limit_speed(max_v, max_a)
+        move.limit_speed(max_v, max_a, max_pa)
 
 def load_kinematics(toolhead, config):
     return LimitedCoreXYKinematics(toolhead, config)

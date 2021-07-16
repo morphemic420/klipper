@@ -94,13 +94,14 @@ class LimitedCartKinematics(cartesian.CartKinematics):
         y_r = max(abs(y_r), EPSILON)
         max_v = min(x_max_v / x_r, y_max_v / y_r)
         max_a = min(x_max_a / x_r, y_max_a / y_r)
+        max_pa = min(x_max_a / y_r, y_max_a / x_r)
         if self.scale_per_axis:
             max_a *= move.accel / self.config_max_accel
         if z_r:
             z_r = abs(z_r)
             max_v = min(max_v, z_max_v / z_r)
             max_a = min(max_a, z_max_a / z_r)
-        move.limit_speed(max_v, max_a)
+        move.limit_speed(max_v, max_a, perp_accel=max_pa)
 
 def load_kinematics(toolhead, config):
     return LimitedCartKinematics(toolhead, config)

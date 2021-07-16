@@ -16,7 +16,7 @@ class Move:
         self.toolhead = toolhead
         self.start_pos = tuple(start_pos)
         self.end_pos = tuple(end_pos)
-        self.accel = toolhead.max_accel
+        self.accel = self.perp_accel = toolhead.max_accel
         self.timing_callbacks = []
         velocity = min(speed, toolhead.max_velocity)
         self.is_kinematic_move = True
@@ -31,7 +31,7 @@ class Move:
             inv_move_d = 0.
             if move_d:
                 inv_move_d = 1. / move_d
-            self.accel = 99999999.9
+            self.accel = self.perp_accel = 99999999.9
             velocity = speed
             self.is_kinematic_move = False
         else:
@@ -46,12 +46,13 @@ class Move:
         self.delta_v2 = 2.0 * move_d * self.accel
         self.max_smoothed_v2 = 0.
         self.smooth_delta_v2 = 2.0 * move_d * toolhead.max_accel_to_decel
-    def limit_speed(self, speed, accel):
+    def limit_speed(self, speed, accel, perp_accel=None):
         speed2 = speed**2
         if speed2 < self.max_cruise_v2:
             self.max_cruise_v2 = speed2
             self.min_move_t = self.move_d / speed
         self.accel = min(self.accel, accel)
+        self.perp_accel = min(self.perp_accel, perp_accel or accel)
         self.delta_v2 = 2.0 * self.move_d * self.accel
         self.smooth_delta_v2 = min(self.smooth_delta_v2, self.delta_v2)
     def move_error(self, msg="Move out of range"):
@@ -77,12 +78,12 @@ class Move:
              / (1. - sin_theta_d2))
         # Approximated circle must contact moves no further away than mid-move
         tan_theta_d2 = sin_theta_d2 / math.sqrt(0.5*(1.0+junction_cos_theta))
-        move_centripetal_v2 = .5 * self.move_d * tan_theta_d2 * self.accel
+        move_centripetal_v2 = .5 * self.move_d * tan_theta_d2 * self.perp_accel
         prev_move_centripetal_v2 = (.5 * prev_move.move_d * tan_theta_d2
-                                    * prev_move.accel)
+                                    * prev_move.perp_accel)
         # Apply limits
         self.max_start_v2 = min(
-            R * self.accel, R * prev_move.accel,
+            R * self.perp_accel, R * prev_move.perp_accel,
             move_centripetal_v2, prev_move_centripetal_v2,
             extruder_v2, self.max_cruise_v2, prev_move.max_cruise_v2,
             prev_move.max_start_v2 + prev_move.delta_v2)
